@@ -4,7 +4,7 @@
 
 // Define application
 #define AUTO_GENERATED_UUID { 0xAF, 0x77, 0xC6, 0x54, 0x47, 0x51, 0x42, 0x10, 0xB1, 0x92, 0xB1, 0x69, 0x5A, 0x18, 0xD8, 0x63 }
-PBL_APP_INFO(AUTO_GENERATED_UUID, "Line Maze", "Chase Colburn", 1, 0, DEFAULT_MENU_ICON, APP_INFO_WATCH_FACE);
+PBL_APP_INFO(AUTO_GENERATED_UUID, "Line Maze", "Chase Colburn", 1, 1, DEFAULT_MENU_ICON, APP_INFO_WATCH_FACE);
 
 Window window;
 
@@ -16,7 +16,7 @@ Layer rightMinuteLayer;
 int hours = 0, minutes = 0;
 // Use the low order first 20 bits to define each number
 int numbers[10] = {0xF999F, /* 0 */ 
-                   0xF4446, /* 1 */
+                   0xE4446, /* 1 */
                    0xF1F8F, /* 2 */ 
                    0xF8E8F, /* 3 */
                    0x88F99, /* 4 */ 
@@ -47,7 +47,7 @@ void pbl_main(void *params) {
     .tick_info =
     {
       .tick_handler = &handle_tick,
-      .tick_units = SECOND_UNIT
+      .tick_units = MINUTE_UNIT
     }
   };
 
