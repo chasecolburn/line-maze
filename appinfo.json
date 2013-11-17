@@ -1,0 +1,26 @@
+{
+  "uuid": "af77c654-4751-4210-b192-b1695a18d863",
+  "shortName": "Line Maze",
+  "longName": "Line Maze",
+  "companyName": "Chase Colburn",
+  "versionCode": 1,
+  "versionLabel": "1.0.0",
+  "watchapp": {
+    "watchface": true
+  },
+  "appKeys": {},
+  "resources": {
+    "media": [
+      {
+        "type": "png",
+        "name": "IMAGE_PATTERN_ON",
+        "file": "images/pattern_on.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_PATTERN_OFF",
+        "file": "images/pattern_off.png"
+      }
+    ]
+  }
+}
