@@ -9,6 +9,7 @@ Layer *rightMinuteLayer;
 GBitmap *patternOnImage;
 GBitmap *patternOffImage;
 
+bool hideBackground;
 int hours = 0, minutes = 0;
 // Use the low order first 20 bits to define each number
 int numbers[10] = {0xF999F, /* 0 */ 
@@ -31,6 +32,7 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed);
 void draw_layer(Layer *layer, GContext *gctxt);
 void draw_time_layer(Layer *layer, GContext *gctxt);
 int display_number_for_layer(Layer *layer);
+void handle_accel(AccelAxisType axis, int32_t direction);
 
 //-----------------------------------------------------------------------------
 // Implementation
@@ -52,6 +54,7 @@ void handle_init() {
   struct tm *tick_time = localtime(&now);
   hours = tick_time->tm_hour;
   minutes = tick_time->tm_min;
+  hideBackground = false;
 
   Layer *root = window_get_root_layer(window);
   layer_set_update_proc(root, draw_layer);
@@ -78,10 +81,12 @@ void handle_init() {
   layer_mark_dirty(rightMinuteLayer);
 
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+  accel_tap_service_subscribe(handle_accel);
 }
 
 void handle_deinit() {
   tick_timer_service_unsubscribe();
+  accel_tap_service_unsubscribe();
   gbitmap_destroy(patternOnImage);
   gbitmap_destroy(patternOffImage);
   layer_destroy(leftHourLayer);
@@ -108,22 +113,33 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)   {
 
 // Draw entire screen
 void draw_layer(Layer *layer, GContext *gctxt) {
-  graphics_draw_bitmap_in_rect(gctxt, patternOffImage, GRect(0, 0, 144, 168));
+  GRect destination = GRect(0, 0, 144, 168);
+  if(hideBackground) {
+    graphics_context_set_fill_color(gctxt, GColorBlack);
+    graphics_fill_rect(gctxt, destination, 0, GCornerNone);
+  }else {
+    graphics_draw_bitmap_in_rect(gctxt, patternOffImage, destination);
+  }
 }
 
 // Draw layer for each number
 void draw_time_layer(Layer *layer, GContext *gctxt) {
-  GRect destination = GRect(0, 0, 48, 60);
-  graphics_draw_bitmap_in_rect(gctxt, patternOffImage, destination);
-
   int displayNumber = display_number_for_layer(layer);
   for(int row = 0; row < 5; row++) {
     for(int col = 0; col < 4; col++) {
-      destination = GRect(col * 12, row * 12, 12, 12);
+      GRect destination = GRect(col * 12, row * 12, 12, 12);
+      // Draw the tile on
       if(numbers[displayNumber] & (1 << ((row * 4) + col))) {
         graphics_draw_bitmap_in_rect(gctxt, patternOnImage, destination);  
-      }else {
-        graphics_draw_bitmap_in_rect(gctxt, patternOffImage, destination);
+      }
+      // Draw the tile off
+      else {
+        if(hideBackground) {
+          graphics_context_set_fill_color(gctxt, GColorBlack);
+          graphics_fill_rect(gctxt, destination, 0, GCornerNone);
+        }else {
+          graphics_draw_bitmap_in_rect(gctxt, patternOffImage, destination);
+        }
       }
     }
   }
@@ -143,3 +159,14 @@ int display_number_for_layer(Layer *layer) {
   return 0;
 }
 
+void handle_accel(AccelAxisType axis, int32_t direction) {
+  //app_log(APP_LOG_LEVEL_INFO, "", 0, "Mode was toggled");
+  hideBackground = !hideBackground;
+
+  Layer *root = window_get_root_layer(window);
+  layer_mark_dirty(root);
+  layer_mark_dirty(leftHourLayer);
+  layer_mark_dirty(rightHourLayer);
+  layer_mark_dirty(leftMinuteLayer);
+  layer_mark_dirty(rightMinuteLayer);
+}
