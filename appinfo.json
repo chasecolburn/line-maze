@@ -4,6 +4,7 @@
   "longName": "Line Maze",
   "companyName": "Chase Colburn",
   "versionCode": 1,
+  "capabilities": ["configurable"],
   "versionLabel": "1.0.0",
   "watchapp": {
     "watchface": true
