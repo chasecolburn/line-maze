@@ -9,7 +9,9 @@
   "watchapp": {
     "watchface": true
   },
-  "appKeys": {},
+  "appKeys": {
+    "shake-to-cheat": 0
+  },
   "resources": {
     "media": [
       {
