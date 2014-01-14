@@ -42,7 +42,7 @@
     <script>
       function saveOptions() {
         var options = {
-          'shake-to-cheat': $("#shake-to-cheat").val()
+          'shake-to-cheat': $("#shake-to-cheat").val() == "off" ? 0 : 1
         }
         return options;
       }
