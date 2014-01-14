@@ -7,7 +7,7 @@ Pebble.addEventListener("ready", function() {
 
 Pebble.addEventListener("showConfiguration", function() {
   console.log("showing configuration");
-  var shakeToCheat = 1; // get current setting from pebble
+  var shakeToCheat = localStorage.getItem("shake-to-cheat") || 1;
   Pebble.openURL('http://rawgithub.com/kesselborn/line-maze/SDK-2.0-with-shake-to-cheat-config/configuration.html?stc=' + shakeToCheat);
 });
 
@@ -25,6 +25,9 @@ Pebble.addEventListener("webviewclosed", function(e) {
                         function(e) {
                           console.log("Successfully delivered message with transactionId=" +
                                       e.data.transactionId + " ... shake-to-cheat=" + options["shake-to-cheat"]);
+
+                          // only save when it worked to stay in sync with watch
+                          localStorage.setItem("shake-to-cheat", options["shake-to-cheat"]);
                         },
                         function(e) {
                           console.log("Unable to deliver message with transactionId=" +
