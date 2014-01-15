@@ -10,7 +10,9 @@
     "watchface": true
   },
   "appKeys": {
-    "shake-to-cheat": 0
+    "shake-to-cheat": 0,
+    "command": 1,
+    "js-initialized": 2
   },
   "resources": {
     "media": [

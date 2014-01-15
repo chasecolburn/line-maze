@@ -11,8 +11,10 @@ GBitmap *patternOffImage;
 
 
 // messages index
-enum {
-  SHAKE_TO_CHEAT
+enum MESSAGE_IDS {
+  SHAKE_TO_CHEAT,
+  SEND_CONFIG,
+  JS_INITIALIZED,
 };
 
 bool hideBackground;
@@ -40,11 +42,15 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed);
 void draw_layer(Layer *layer, GContext *gctxt);
 void draw_time_layer(Layer *layer, GContext *gctxt);
 int display_number_for_layer(Layer *layer);
+void redraw();
 void handle_accel(AccelAxisType axis, int32_t direction);
 
+void trigger_config_fetch();
 
 void in_received_handler(DictionaryIterator *received, void *context);
 void in_dropped_handler(AppMessageResult reason, void *context);
+void out_sent_handler(DictionaryIterator *sent, void *context);
+void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context);
 
 //-----------------------------------------------------------------------------
 // Implementation
@@ -56,9 +62,19 @@ int main(void) {
 }
 
 void handle_init() {
+  // messaging
+  app_message_register_inbox_received(in_received_handler);
+  app_message_register_inbox_dropped(in_dropped_handler);
+  app_message_register_outbox_sent(out_sent_handler);
+  app_message_register_outbox_failed(out_failed_handler);
+
+  const uint32_t inbound_size = 64;
+  const uint32_t outbound_size = 64;
+  app_message_open(inbound_size, outbound_size);
+
   if(persist_exists(SHAKE_TO_CHEAT)) {
     shakeToCheat = persist_read_bool(SHAKE_TO_CHEAT);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "shake-to-cheat config: %d", (int) shakeToCheat);
+    APP_LOG(APP_LOG_LEVEL_ERROR, "shake-to-cheat config: %d", (int) shakeToCheat);
   }
 
   patternOnImage = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PATTERN_ON);
@@ -99,14 +115,7 @@ void handle_init() {
 
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
   accel_tap_service_subscribe(handle_accel);
-
-  // messaging
-  app_message_register_inbox_received(in_received_handler);
-  app_message_register_inbox_dropped(in_dropped_handler);
-
-  const uint32_t inbound_size = 32;
-  const uint32_t outbound_size = 32;
-  app_message_open(inbound_size, outbound_size);
+  
 }
 
 void handle_deinit() {
@@ -184,33 +193,79 @@ int display_number_for_layer(Layer *layer) {
   return 0;
 }
 
+void redraw() {
+  Layer *root = window_get_root_layer(window);
+  layer_mark_dirty(root);
+  layer_mark_dirty(leftHourLayer);
+  layer_mark_dirty(rightHourLayer);
+  layer_mark_dirty(leftMinuteLayer);
+  layer_mark_dirty(rightMinuteLayer);
+}
+
 void handle_accel(AccelAxisType axis, int32_t direction) {
   //app_log(APP_LOG_LEVEL_INFO, "", 0, "Mode was toggled");
 
   if(shakeToCheat) {
     hideBackground = !hideBackground;
-
-    Layer *root = window_get_root_layer(window);
-    layer_mark_dirty(root);
-    layer_mark_dirty(leftHourLayer);
-    layer_mark_dirty(rightHourLayer);
-    layer_mark_dirty(leftMinuteLayer);
-    layer_mark_dirty(rightMinuteLayer);
+    redraw();
   }
+}
+
+void trigger_config_fetch() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Triggering config fetch");
+
+  DictionaryIterator *iter;
+
+  int res;
+
+  if( (res = app_message_outbox_begin(&iter)) != APP_MSG_OK) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Dict iterator size is %d", sizeof(iter));
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Error beginning to write to outbox, error #%d", res);
+    return;
+  }
+
+  Tuplet send_config = TupletCString(SEND_CONFIG, "send-config"); // the value is a dummy
+  if( (res = dict_write_tuplet(iter, &send_config)) != DICT_OK) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Error writing tuplet to dictionary, error #%d", res);
+  }
+
+  app_message_outbox_send();
 }
 
 void in_received_handler(DictionaryIterator *received, void *context) {
   Tuple *shakeToCheatConfig = dict_find(received, SHAKE_TO_CHEAT);
 
-  if (shakeToCheatConfig) {
+  if(shakeToCheatConfig) {
     shakeToCheat = shakeToCheatConfig->value->int32 == 1 ? true : false;
-    persist_write_bool(SHAKE_TO_CHEAT, shakeToCheat);
-    hideBackground = false;
+    persist_write_int(SHAKE_TO_CHEAT, shakeToCheat);
+    if(!persist_exists(SHAKE_TO_CHEAT)) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Error persisting config");
+    }
+    hideBackground = shakeToCheat;
+    redraw();
 
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Received SHAKE_TO_CHEAT configuration value: %d", (int) shakeToCheat);
+  }
+
+  Tuple *jsInitialized = dict_find(received, JS_INITIALIZED);
+  if(jsInitialized) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Received JS_INITIALIZED message");
+    if(!persist_exists(SHAKE_TO_CHEAT)) {
+      trigger_config_fetch();
+    }
   }
 }
 
 void in_dropped_handler(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Message dropped: %d", reason);
+}
+
+void out_sent_handler(DictionaryIterator *sent, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Message sent");
+}
+
+
+void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Message sending failed: %d", reason);
+  // outgoing message failed
 }
